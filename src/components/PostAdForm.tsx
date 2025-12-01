@@ -23,6 +23,11 @@ export const PostAdForm = ({ onAdd }: PostAdFormProps) => {
         'https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=800&q=80',
       latitude: -12.0635 + Math.random() * 0.01,
       longitude: -77.077 + Math.random() * 0.01,
+      specs: {
+        bedrooms: 1,
+        bathrooms: 1,
+        area: 20,
+      },
     };
 
     onAdd(newListing);
