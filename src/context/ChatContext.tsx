@@ -1,8 +1,7 @@
 import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { Message, ChatSession, DealData } from '../types';
-import { mockListings } from '../data/mockListings'; // Importamos los datos
+import { mockListings } from '../data/mockListings';
 
-// ... (Interfaces OfferData y ChatContextValue igual que antes)
 interface OfferData {
   code: string;
   listingTitle: string;
@@ -41,12 +40,11 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
   // Almacén de tratos
   const [deals, setDeals] = useState<DealData[]>([]);
 
-  // --- EFECTO DE INICIALIZACIÓN ---
-  // Cargamos los códigos de los mockListings en el sistema de contratos al iniciar
+  // Inicialización de datos mock
   useEffect(() => {
     const preloadedDeals: DealData[] = mockListings.map(listing => ({
         contractCode: listing.contractCode || `CTR-${listing.id}`,
-        paymentCode: `PAY-${listing.id}${Math.floor(Math.random() * 100)}`, // Generamos PAY code predecible
+        paymentCode: `PAY-${listing.id}${Math.floor(Math.random() * 100)}`,
         listingTitle: listing.title,
         listingAddress: listing.address,
         price: listing.price,
@@ -81,6 +79,62 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
       }
   };
 
+  // RESPUESTA AUTOMÁTICA (Corregida: Sin Link en texto)
+  const triggerAutoResponse = (chatId: string) => {
+    setTimeout(() => {
+        const mockListing = {
+            title: "Minidepa Estudiantil en Surco",
+            price: 850,
+            address: "Av. Principal 656, Surco"
+        };
+        
+        const contractCode = `CTR-${Math.floor(1000 + Math.random() * 9000)}`;
+        const paymentCode = `PAY-${Math.floor(1000 + Math.random() * 9000)}`;
+        
+        const newDeal: DealData = {
+            contractCode,
+            paymentCode,
+            listingTitle: mockListing.title,
+            listingAddress: mockListing.address,
+            price: mockListing.price,
+            studentName: "Estudiante",
+            landlordName: "Carlos Mendoza",
+            isSigned: false,
+            isPaid: false,
+            listingId: 'mock-listing-1'
+        };
+        setDeals(prev => [...prev, newDeal]);
+
+        const driveLink = "https://drive.google.com/drive/folders/1b-EJyGPfXqQmcVqpkKcAsSLb7laQjErQ?usp=sharing";
+        
+        // CORRECCIÓN AQUÍ: Quitamos el link del texto
+        const responseMsg: Message = {
+            id: Date.now().toString(),
+            text: `Hola, he generado la propuesta de contrato para "${mockListing.title}".
+            
+Si estás de acuerdo, ve a la sección "Contrato" e ingresa este código para firmar:
+
+🔑 CÓDIGO: ${contractCode}`,
+            senderId: 'landlord-1',
+            timestamp: Date.now(),
+            type: 'contract_offer',
+            contractCode: contractCode,
+            contractLink: driveLink, // El link va oculto aquí para el botón
+            contractTitle: mockListing.title
+        };
+
+        setAllChats(prev => prev.map(chat => {
+            if (chat.id === chatId) {
+                const updatedChat = { ...chat, messages: [...chat.messages, responseMsg] };
+                setActiveChat(current => current?.id === chatId ? updatedChat : current);
+                return updatedChat;
+            }
+            return chat;
+        }));
+
+    }, 1500);
+  };
+
   const sendMessage = (text: string) => {
     if (!activeChat) return;
     const newMessage: Message = {
@@ -93,17 +147,21 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
     const updatedChat = { ...activeChat, messages: [...activeChat.messages, newMessage] };
     setActiveChat(updatedChat);
     setAllChats(prev => prev.map(c => c.id === activeChat.id ? updatedChat : c));
+
+    if (activeChat.participantId === 'landlord-1') {
+        triggerAutoResponse(activeChat.id);
+    }
   };
 
+  // GENERAR CONTRATO MANUAL (Corregida: Sin Link en texto)
   const generateContractOffer = (listing: any) => {
     if (!activeChat) return;
 
-    // Si el aviso ya tiene un código fijo (del mock), lo usamos. Si no, generamos uno nuevo.
-    const contractCode = listing.contractCode || `CTR-${Math.floor(1000 + Math.random() * 9000)}`;
+    const contractCode = `CTR-${Math.floor(1000 + Math.random() * 9000)}`;
+    const paymentCode = `PAY-${Math.floor(1000 + Math.random() * 9000)}`;
     
-    // Verificamos si ya existe el trato, si no, lo creamos (para avisos nuevos creados por usuario)
+    // Verificamos si ya existe el trato
     if (!deals.find(d => d.contractCode === contractCode)) {
-        const paymentCode = `PAY-${Math.floor(1000 + Math.random() * 9000)}`;
         const newDeal: DealData = {
             contractCode,
             paymentCode,
@@ -120,13 +178,13 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
     }
 
     const driveLink = "https://drive.google.com/drive/folders/1b-EJyGPfXqQmcVqpkKcAsSLb7laQjErQ?usp=sharing";
+    
+    // CORRECCIÓN AQUÍ: Quitamos el link del texto
     const messageText = `He generado el contrato digital para "${listing.title}".
     
 Por favor, ve a la sección "Contrato" e ingresa este código para leer y firmar el documento:
 
-🔑 CÓDIGO DE CONTRATO: ${contractCode}
-
-Puedes ver el borrador aquí: ${driveLink}`;
+🔑 CÓDIGO DE CONTRATO: ${contractCode}`;
 
     const newMessage: Message = {
       id: Date.now().toString(),
@@ -148,8 +206,7 @@ Puedes ver el borrador aquí: ${driveLink}`;
 
   const getDealByContractCode = (code: string) => deals.find(d => d.contractCode === code.trim());
   const getDealByPaymentCode = (code: string) => deals.find(d => d.paymentCode === code.trim());
-  
-  const getOfferByCode = (code: string) => { return undefined; };
+  const getOfferByCode = (code: string) => undefined;
 
   const signContract = (contractCode: string) => {
       const deal = deals.find(d => d.contractCode === contractCode);
